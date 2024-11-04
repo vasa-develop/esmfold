@@ -14,45 +14,53 @@ def deploy_model():
     BASE_URL = "https://api.replicate.com/v1"
     MODELS_URL = f"{BASE_URL}/models"
 
-    # Model configuration
-    model_data = {
-        "owner": "vasa-develop",
-        "name": "esmfold",
-        "description": "ESM-Fold protein structure prediction model with memory optimization",
-        "visibility": "public",
-        "hardware": "gpu-t4"
-    }
-
     try:
-        # Check if model exists
-        model_response = requests.get(
-            f"{MODELS_URL}/vasa-develop/esmfold",
-            headers=headers
+        # Create collection (model)
+        collection_data = {
+            "owner": "vasa-develop",
+            "name": "esmfold",
+            "description": "ESM-Fold protein structure prediction model with memory optimization",
+            "visibility": "public",
+            "hardware": "gpu-t4",
+            "github_url": "https://github.com/vasa-develop/esmfold",
+            "paper_url": "https://www.biorxiv.org/content/10.1101/2022.07.20.500902v1"
+        }
+
+        print("Creating collection...")
+        collection_response = requests.post(
+            f"{MODELS_URL}",
+            headers=headers,
+            json=collection_data
         )
 
-        if model_response.status_code == 404:
-            # Create model if it doesn't exist
-            model_response = requests.post(
-                MODELS_URL,
-                headers=headers,
-                json=model_data
-            )
-            if not model_response.ok:
-                print(f"Failed to create model: {model_response.text}")
+        if not collection_response.ok and collection_response.status_code != 409:
+            print(f"Failed to create collection: {collection_response.text}")
+            if collection_response.status_code != 409:  # 409 means already exists
                 return False
-            print("Model created successfully")
-        else:
-            print("Model already exists")
-
-        # Read model files
-        with open("cog.yaml", "r") as f:
-            cog_yaml = f.read()
-        with open("predict.py", "r") as f:
-            predict_py = f.read()
 
         # Create version
         version_data = {
-            "cog_yaml": cog_yaml,
+            "version": {
+                "cog_version": "0.8.5",
+                "cuda_version": "11.8",
+                "python_version": "3.10",
+                "python_packages": [
+                    "torch==2.0.1",
+                    "fair-esm[esmfold]",
+                    "biotite==0.36.1",
+                    "biopython==1.81",
+                    "accelerate>=0.21.0"
+                ],
+                "system_packages": [
+                    "libgl1-mesa-glx",
+                    "libglib2.0-0",
+                    "git"
+                ]
+            },
+            "hardware": {
+                "gpu": "t4",
+                "gpu_memory": "16GB"
+            },
             "openapi_schema": {
                 "input": {
                     "properties": {
@@ -75,21 +83,10 @@ def deploy_model():
                         }
                     }
                 }
-            },
-            "python_packages": [
-                "torch==2.0.1",
-                "fair-esm[esmfold]",
-                "biotite==0.36.1",
-                "biopython==1.81",
-                "accelerate>=0.21.0"
-            ],
-            "python_version": "3.10",
-            "cuda_version": "11.8",
-            "files": {
-                "predict.py": predict_py
             }
         }
 
+        print("Creating version...")
         version_response = requests.post(
             f"{MODELS_URL}/vasa-develop/esmfold/versions",
             headers=headers,
@@ -99,6 +96,7 @@ def deploy_model():
         if version_response.ok:
             version_info = version_response.json()
             print(f"Version created successfully: {version_info.get('id', 'Unknown ID')}")
+            print("Deployment URL:", f"https://replicate.com/vasa-develop/esmfold")
             return True
         else:
             print(f"Failed to create version: {version_response.text}")
