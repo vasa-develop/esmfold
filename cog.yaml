@@ -1,0 +1,27 @@
+# Configuration for Cog ⚙️
+# Reference: https://cog.run/yaml
+
+build:
+  # ESM-Fold requires GPU for efficient inference
+  gpu: true
+  cuda: "11.8"
+
+  # Python version compatible with ESM-Fold
+  python_version: "3.10"
+
+  # Required system packages
+  system_packages:
+    - "libgl1-mesa-glx"
+    - "libglib2.0-0"
+    - "git"
+
+  # Python packages for ESM-Fold
+  python_packages:
+    - "torch==2.0.1"
+    - "fair-esm[esmfold]"
+    - "biotite==0.36.1"
+    - "biopython==1.81"
+    - "accelerate>=0.21.0"
+
+# predict.py defines how predictions are run on your model
+predict: "predict.py:Predictor"
